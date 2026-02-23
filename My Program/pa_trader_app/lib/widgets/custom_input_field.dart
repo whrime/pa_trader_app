@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CustomInputField extends StatelessWidget {
   final String label;
@@ -9,6 +10,7 @@ class CustomInputField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final List<String>? dropdownItems;
   final String? hintText;
+  final bool isNumber; // 新增：是否为数字输入
 
   const CustomInputField({
     Key? key,
@@ -20,6 +22,7 @@ class CustomInputField extends StatelessWidget {
     this.onChanged,
     this.dropdownItems,
     this.hintText,
+    this.isNumber = false, // 默认为false
   }) : super(key: key);
 
   @override
@@ -51,6 +54,14 @@ class CustomInputField extends StatelessWidget {
       readOnly: readOnly,
       enabled: !readOnly,
       onChanged: onChanged,
+      keyboardType: isNumber 
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      inputFormatters: isNumber
+          ? <TextInputFormatter>[
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ]
+          : null,
       validator: validator,
       decoration: InputDecoration(
         isDense: true,

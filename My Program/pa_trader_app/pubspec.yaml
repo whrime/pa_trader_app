@@ -9,7 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.5
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  intl: ^0.18.1
+  cupertino_icons: ^1.0.6
+  image_picker: ^1.0.7
+  photo_view: ^0.14.0
 
 dev_dependencies:
   flutter_test:
@@ -19,6 +24,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  # 如果有本地图片资源，取消注释并添加
-  # assets:
-  #   - assets/images/
+  assets:
+    - lib/assets/images/

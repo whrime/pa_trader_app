@@ -19,6 +19,7 @@ class TradingInputSection extends StatefulWidget {
   final TextEditingController prevLowController;
   final TextEditingController prevHighController;
   final TextEditingController waveDiffController;
+  final TextEditingController fiftyPercentRetraceController; // 新增
   final TextEditingController actualExitController;
   final TextEditingController riskRewardController;
   final List<String> setupOptions;
@@ -42,6 +43,7 @@ class TradingInputSection extends StatefulWidget {
     required this.prevLowController,
     required this.prevHighController,
     required this.waveDiffController,
+    required this.fiftyPercentRetraceController, // 新增
     required this.actualExitController,
     required this.riskRewardController,
     required this.setupOptions,
@@ -108,6 +110,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '总资金(w):',
           controller: widget.capitalController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -146,6 +149,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '持仓时间(天):',
           controller: widget.holdingDaysController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -170,6 +174,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '建仓:',
           controller: widget.entryPriceController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -194,6 +199,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '止损:',
           controller: widget.stopLossController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -218,6 +224,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '前波段低点:',
           controller: widget.prevLowController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -226,6 +233,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         CustomInputField(
           label: '前波段高点:',
           controller: widget.prevHighController,
+          isNumber: true,
           onChanged: (_) => widget.onAutoCalculate(),
         ),
         const SizedBox(height: 8),
@@ -240,9 +248,16 @@ class _TradingInputSectionState extends State<TradingInputSection> {
         const SizedBox(height: 8),
         
         // 第十六组：实际出场价
+        ReadOnlyDisplayField(
+          label: '50%回调:',
+          value: widget.fiftyPercentRetraceController.text,
+        ),
+        const SizedBox(height: 8),
+
         CustomInputField(
           label: '实际出场价:',
           controller: widget.actualExitController,
+          isNumber: true,
           onChanged: (_) {
             setState(() {
               widget.riskRewardController.text = _calculateRiskReward();
@@ -272,6 +287,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '总资金(w):',
                 controller: widget.capitalController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -315,6 +331,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '持仓时间(天):',
                 controller: widget.holdingDaysController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -344,6 +361,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '建仓:',
                 controller: widget.entryPriceController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -373,6 +391,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '止损:',
                 controller: widget.stopLossController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -402,6 +421,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '前波段低点:',
                 controller: widget.prevLowController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -410,6 +430,7 @@ class _TradingInputSectionState extends State<TradingInputSection> {
               child: CustomInputField(
                 label: '前波段高点:',
                 controller: widget.prevHighController,
+                isNumber: true,
                 onChanged: (_) => widget.onAutoCalculate(),
               ),
             ),
@@ -429,9 +450,17 @@ class _TradingInputSectionState extends State<TradingInputSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
+              child: ReadOnlyDisplayField(
+                label: '50%回调:',
+                value: widget.fiftyPercentRetraceController.text,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: CustomInputField(
                 label: '实际出场价:',
                 controller: widget.actualExitController,
+                isNumber: true,
                 onChanged: (_) {
                   setState(() {
                     widget.riskRewardController.text = _calculateRiskReward();
