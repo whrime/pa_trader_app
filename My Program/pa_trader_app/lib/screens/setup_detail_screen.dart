@@ -4,31 +4,155 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../models/setup_option.dart';
 
-class SetupDetailScreen extends StatelessWidget {
-  final SetupOption setup;
+class SetupDetailScreen extends StatefulWidget {
+  final List<SetupOption> setups;
+  final int initialIndex;
 
   const SetupDetailScreen({
     Key? key,
-    required this.setup,
+    required this.setups,
+    required this.initialIndex,
   }) : super(key: key);
+
+  @override
+  State<SetupDetailScreen> createState() => _SetupDetailScreenState();
+}
+
+class _SetupDetailScreenState extends State<SetupDetailScreen> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToPrevious() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _goToNext() {
+    if (_currentIndex < widget.setups.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(setup.name),
+        title: Text(widget.setups[_currentIndex].name),
         elevation: 2,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildImageSection(context),
-            _buildContentSection(),
-            _buildQaSection(),
-            const SizedBox(height: 32),
+      body: Column(
+        children: [
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemCount: widget.setups.length,
+              itemBuilder: (context, index) {
+                return _SetupDetailContent(setup: widget.setups[index]);
+              },
+            ),
+          ),
+          _buildNavigationBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationBar() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
           ],
         ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _currentIndex > 0 ? _goToPrevious : null,
+              icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+              label: const Text('上一个'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            Text(
+              '${_currentIndex + 1} / ${widget.setups.length}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _currentIndex < widget.setups.length - 1 ? _goToNext : null,
+              icon: const Text('下一个'),
+              label: const Icon(Icons.keyboard_arrow_down, size: 20),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SetupDetailContent extends StatelessWidget {
+  final SetupOption setup;
+
+  const _SetupDetailContent({required this.setup});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildImageSection(context),
+          _buildContentSection(),
+          _buildQaSection(),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }

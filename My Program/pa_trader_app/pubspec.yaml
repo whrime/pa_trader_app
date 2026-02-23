@@ -26,3 +26,5 @@ flutter:
   
   assets:
     - lib/assets/images/
+    - lib/assets/images/setups/
+    - lib/assets/images/reviews/

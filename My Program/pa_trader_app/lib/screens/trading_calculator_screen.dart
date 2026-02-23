@@ -188,7 +188,7 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
       
       if (entryPrice > 0 && lots > 0) {
         double usedCapital = lots * 100 * entryPrice;
-        usedCapitalController.text = usedCapital.toStringAsFixed(2);
+        usedCapitalController.text = usedCapital.toStringAsFixed(3);
       }
     } catch (e) {
       usedCapitalController.text = '';
@@ -204,7 +204,7 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
       
       if (usedCapital > 0 && capital > 0) {
         double positionPercent = (usedCapital * 100) / capital;
-        positionPercentController.text = '${positionPercent.toStringAsFixed(2)}%';
+        positionPercentController.text = '${positionPercent.toStringAsFixed(3)}%';
       }
     } catch (e) {
       positionPercentController.text = '';
@@ -218,7 +218,7 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
       
       if (prevHigh > 0 && prevLow > 0) {
         double waveDiff = prevHigh - prevLow;
-        waveDiffController.text = waveDiff.toStringAsFixed(2);
+        waveDiffController.text = waveDiff.toStringAsFixed(3);
       }
     } catch (e) {
       waveDiffController.text = '';
@@ -232,7 +232,7 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
       
       if (prevHigh > 0 && prevLow > 0) {
         double retrace = prevLow + (prevHigh - prevLow) / 2;
-        fiftyPercentRetraceController.text = retrace.toStringAsFixed(2);
+        fiftyPercentRetraceController.text = retrace.toStringAsFixed(3);
       }
     } catch (e) {
       fiftyPercentRetraceController.text = '';
@@ -248,10 +248,10 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
         double priceDiff = entryPrice - stopLoss;
         if (priceDiff > 0) {
           double targetPrice1x = priceDiff + entryPrice;
-          onceTargetPriceController.text = targetPrice1x.toStringAsFixed(2);
+          onceTargetPriceController.text = targetPrice1x.toStringAsFixed(3);
           
           double targetPrice2x = priceDiff * 2 + entryPrice;
-          doubleTargetPriceController.text = targetPrice2x.toStringAsFixed(2);
+          doubleTargetPriceController.text = targetPrice2x.toStringAsFixed(3);
         }
       }
     } catch (e) {
@@ -275,13 +275,13 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
       if (actualExit > 0) {
         double profit = actualExit - entryPrice;
         double riskReward = profit / loss;
-        riskRewardController.text = '实际: ${riskReward.toStringAsFixed(2)}:1';
+        riskRewardController.text = '实际: ${riskReward.toStringAsFixed(3)}:1';
       } else {
         double targetPrice = double.tryParse(onceTargetPriceController.text) ?? 0;
         if (targetPrice > 0) {
           double profit = targetPrice - entryPrice;
           double riskReward = profit / loss;
-          riskRewardController.text = '预期: ${riskReward.toStringAsFixed(2)}:1';
+          riskRewardController.text = '预期: ${riskReward.toStringAsFixed(3)}:1';
         }
       }
     } catch (e) {
@@ -467,10 +467,15 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
                     elevation: 2,
                     child: InkWell(
                       onTap: () {
+                        final setupList = setupOptions.values.toList();
+                        final index = setupList.indexWhere((s) => s.id == currentSetup!.id);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SetupDetailScreen(setup: currentSetup!),
+                            builder: (context) => SetupDetailScreen(
+                              setups: setupList,
+                              initialIndex: index >= 0 ? index : 0,
+                            ),
                           ),
                         );
                       },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/trade_record.dart';
 import '../services/database_service.dart';
+import 'history_detail_screen.dart';
 import 'home_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -169,116 +170,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ],
                         ),
                         onTap: () {
-                          // 点击查看详情
-                          _showRecordDetail(record);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HistoryDetailScreen(
+                                records: _records,
+                                initialIndex: index,
+                              ),
+                            ),
+                          );
                         },
                       ),
                     );
                   },
                 ),
-    );
-  }
-
-  void _showRecordDetail(TradeRecord record) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '交易详情 - ${record.stockName}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Divider(),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    children: [
-                      _buildDetailRow('股票名称', record.stockName),
-                      _buildDetailRow('交易时间', _formatDate(record.tradeDate)),
-                      if (record.updateTime != null)
-                        _buildDetailRow('更新时间', _formatDate(record.updateTime!)),
-                      _buildDetailRow('Setup', record.setup ?? '-'),
-                      _buildDetailRow('总资金(w)', record.capital ?? '-'),
-                      _buildDetailRow('止损百分比', record.stopLossPercent ?? '-'),
-                      _buildDetailRow('持仓时间(天)', record.holdingDays ?? '-'),
-                      _buildDetailRow('入场周期', record.entryPeriod ?? '-'),
-                      const Divider(),
-                      _buildDetailRow('入场价', record.entryPrice ?? '-'),
-                      _buildDetailRow('止损价', record.stopLoss ?? '-'),
-                      _buildDetailRow('手数', record.lots ?? '-'),
-                      _buildDetailRow('使用资金', record.usedCapital ?? '-'),
-                      _buildDetailRow('仓位占比', record.positionPercent ?? '-'),
-                      const Divider(),
-                      _buildDetailRow('前波段低点', record.prevLow ?? '-'),
-                      _buildDetailRow('前波段高点', record.prevHigh ?? '-'),
-                      _buildDetailRow('波段差', record.waveDiff ?? '-'),
-                      _buildDetailRow('50%回调位', record.fiftyPercentRetrace ?? '-'),
-                      _buildDetailRow('一倍目标价', record.onceTargetPrice ?? '-'),
-                      _buildDetailRow('二倍目标价', record.doubleTargetPrice ?? '-'),
-                      const Divider(),
-                      _buildDetailRow('实际出场价', record.actualExit ?? '-'),
-                      _buildDetailRow('风报比', record.riskReward ?? '-'),
-                      if (record.notes != null && record.notes!.isNotEmpty)
-                        _buildDetailRow('备注', record.notes!),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

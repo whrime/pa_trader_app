@@ -1,43 +1,24 @@
 import 'package:flutter/material.dart';
-import '../models/setup_option.dart';
-import 'setup_detail_screen.dart';
-import 'setup_edit_screen.dart';
+import '../models/review_option.dart';
+import 'review_detail_screen.dart';
+import 'review_edit_screen.dart';
 
-class SetupListScreen extends StatefulWidget {
-  final Function(SetupOption)? onSelectSetup;
-  final Function(List<SetupOption>)? onSetupsChanged;
+class ReviewListScreen extends StatefulWidget {
+  final Function(List<ReviewOption>)? onReviewsChanged;
 
-  const SetupListScreen({
-    Key? key,
-    this.onSelectSetup,
-    this.onSetupsChanged,
-  }) : super(key: key);
+  const ReviewListScreen({Key? key, this.onReviewsChanged}) : super(key: key);
 
   @override
-  State<SetupListScreen> createState() => SetupListScreenState();
+  State<ReviewListScreen> createState() => ReviewListScreenState();
 }
 
-class SetupListScreenState extends State<SetupListScreen> {
-  List<SetupOption> _customSetups = [];
+class ReviewListScreenState extends State<ReviewListScreen> {
+  List<ReviewOption> _customReviews = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCustomSetups();
-  }
-
-  Future<void> _loadCustomSetups() async {
-    setState(() {});
-  }
-
-  void _notifySetupsChanged() {
-    widget.onSetupsChanged?.call(_customSetups);
-  }
-
-  List<SetupOption> get _allSetups {
-    final customIds = _customSetups.map((s) => s.id).toSet();
-    final filteredPredefined = SetupOption.predefinedList.where((s) => !customIds.contains(s.id));
-    final all = [...filteredPredefined, ..._customSetups];
+  List<ReviewOption> get _allReviews {
+    final customIds = _customReviews.map((s) => s.id).toSet();
+    final filteredPredefined = ReviewOption.predefinedList.where((s) => !customIds.contains(s.id));
+    final all = [...filteredPredefined, ..._customReviews];
     all.sort((a, b) {
       final numA = int.tryParse(a.id) ?? 999;
       final numB = int.tryParse(b.id) ?? 999;
@@ -46,52 +27,51 @@ class SetupListScreenState extends State<SetupListScreen> {
     return all;
   }
 
-  Future<void> _navigateToEdit({SetupOption? setup}) async {
-    final result = await Navigator.push<SetupOption>(
+  Future<void> _navigateToEdit({ReviewOption? review}) async {
+    final result = await Navigator.push<ReviewOption>(
       context,
       MaterialPageRoute(
-        builder: (context) => SetupEditScreen(setup: setup),
+        builder: (context) => ReviewEditScreen(review: review),
       ),
     );
 
     if (result != null) {
       setState(() {
-        if (setup != null) {
-          final index = _customSetups.indexWhere((s) => s.id == setup.id);
+        if (review != null) {
+          final index = _customReviews.indexWhere((s) => s.id == review.id);
           if (index != -1) {
-            _customSetups[index] = result;
+            _customReviews[index] = result;
           } else {
-            _customSetups.add(result);
+            _customReviews.add(result);
           }
         } else {
-          _customSetups.add(result);
+          _customReviews.add(result);
         }
       });
-      _notifySetupsChanged();
+      widget.onReviewsChanged?.call(_customReviews);
     }
   }
 
-  void _deleteCustomSetup(SetupOption setup) {
+  void _deleteCustomReview(ReviewOption review) {
     setState(() {
-      _customSetups.removeWhere((s) => s.id == setup.id);
+      _customReviews.removeWhere((s) => s.id == review.id);
     });
-    _notifySetupsChanged();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('删除成功')),
     );
   }
 
-  bool _isCustomSetup(SetupOption setup) {
-    return _customSetups.any((s) => s.id == setup.id);
+  bool _isCustomReview(ReviewOption review) {
+    return _customReviews.any((s) => s.id == review.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final setups = _allSetups;
+    final reviews = _allReviews;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Setup 策略库'),
+        title: const Text('复盘分析'),
         elevation: 2,
         actions: [
           IconButton(
@@ -99,7 +79,7 @@ class SetupListScreenState extends State<SetupListScreen> {
             onPressed: () {
               showSearch(
                 context: context,
-                delegate: _SetupSearchDelegate(setups, widget.onSelectSetup, _isCustomSetup, _navigateToEdit, _deleteCustomSetup),
+                delegate: _ReviewSearchDelegate(reviews, _isCustomReview, _navigateToEdit, _deleteCustomReview),
               );
             },
           ),
@@ -111,32 +91,28 @@ class SetupListScreenState extends State<SetupListScreen> {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        itemCount: setups.length,
+        itemCount: reviews.length,
         itemBuilder: (context, index) {
-          final setup = setups[index];
-          final isCustom = _isCustomSetup(setup);
-          return _SetupCard(
-            setup: setup,
+          final review = reviews[index];
+          final isCustom = _isCustomReview(review);
+          return _ReviewCard(
+            review: review,
             index: index,
             isCustom: isCustom,
+            reviews: reviews,
             onTap: () {
-              if (widget.onSelectSetup != null) {
-                widget.onSelectSetup!(setup);
-                Navigator.pop(context);
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SetupDetailScreen(
-                      setups: setups,
-                      initialIndex: index,
-                    ),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReviewDetailScreen(
+                    reviews: reviews,
+                    initialIndex: index,
                   ),
-                );
-              }
+                ),
+              );
             },
-            onEdit: () => _navigateToEdit(setup: setup),
-            onDelete: isCustom ? () => _deleteCustomSetup(setup) : null,
+            onEdit: () => _navigateToEdit(review: review),
+            onDelete: isCustom ? () => _deleteCustomReview(review) : null,
           );
         },
       ),
@@ -144,18 +120,20 @@ class SetupListScreenState extends State<SetupListScreen> {
   }
 }
 
-class _SetupCard extends StatelessWidget {
-  final SetupOption setup;
+class _ReviewCard extends StatelessWidget {
+  final ReviewOption review;
   final int index;
   final bool isCustom;
+  final List<ReviewOption> reviews;
   final VoidCallback onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
-  const _SetupCard({
-    required this.setup,
+  const _ReviewCard({
+    required this.review,
     required this.index,
     required this.isCustom,
+    required this.reviews,
     required this.onTap,
     this.onEdit,
     this.onDelete,
@@ -179,8 +157,8 @@ class _SetupCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: isCustom
-                        ? [Colors.green[400]!, Colors.green[600]!]
-                        : [Colors.blue[400]!, Colors.blue[600]!],
+                        ? [Colors.orange[400]!, Colors.orange[600]!]
+                        : [Colors.purple[400]!, Colors.purple[600]!],
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -204,7 +182,7 @@ class _SetupCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            setup.name,
+                            review.name,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -215,14 +193,14 @@ class _SetupCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green[100],
+                              color: Colors.orange[100],
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
                               '自定义',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.green,
+                                color: Colors.orange,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -231,7 +209,7 @@ class _SetupCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      setup.shortDescription,
+                      review.shortDescription,
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey[600],
@@ -272,14 +250,13 @@ class _SetupCard extends StatelessWidget {
   }
 }
 
-class _SetupSearchDelegate extends SearchDelegate {
-  final List<SetupOption> setups;
-  final Function(SetupOption)? onSelectSetup;
-  final bool Function(SetupOption) isCustomSetup;
-  final Function({SetupOption? setup}) navigateToEdit;
-  final Function(SetupOption) deleteCustomSetup;
+class _ReviewSearchDelegate extends SearchDelegate {
+  final List<ReviewOption> reviews;
+  final bool Function(ReviewOption) isCustomReview;
+  final Function({ReviewOption? review}) navigateToEdit;
+  final Function(ReviewOption) deleteCustomReview;
 
-  _SetupSearchDelegate(this.setups, this.onSelectSetup, this.isCustomSetup, this.navigateToEdit, this.deleteCustomSetup);
+  _ReviewSearchDelegate(this.reviews, this.isCustomReview, this.navigateToEdit, this.deleteCustomReview);
 
   @override
   List<Widget> buildActions(BuildContext context) {
@@ -310,71 +287,67 @@ class _SetupSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final results = setups.where((setup) {
-      return setup.name.toLowerCase().contains(query.toLowerCase()) ||
-          setup.shortDescription.toLowerCase().contains(query.toLowerCase());
+    final results = reviews.where((review) {
+      return review.name.toLowerCase().contains(query.toLowerCase()) ||
+          review.shortDescription.toLowerCase().contains(query.toLowerCase()) ||
+          review.content.toLowerCase().contains(query.toLowerCase());
     }).toList();
 
     return ListView.builder(
       padding: const EdgeInsets.all(8),
       itemCount: results.length,
       itemBuilder: (context, index) {
-        final setup = results[index];
-        final isCustom = isCustomSetup(setup);
+        final review = results[index];
+        final isCustom = isCustomReview(review);
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: isCustom ? Colors.green[400] : Colors.blue[400],
+            backgroundColor: isCustom ? Colors.orange[400] : Colors.purple[400],
             child: Text(
-              setup.name[0],
+              review.name[0],
               style: const TextStyle(color: Colors.white),
             ),
           ),
           title: Row(
             children: [
-              Expanded(child: Text(setup.name)),
+              Expanded(child: Text(review.name)),
               if (isCustom)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green[100],
+                    color: Colors.orange[100],
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     '自定义',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.green,
+                      color: Colors.orange,
                     ),
                   ),
                 ),
             ],
           ),
           subtitle: Text(
-            setup.shortDescription,
+            review.shortDescription,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           trailing: isCustom
               ? IconButton(
                   icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                  onPressed: () => deleteCustomSetup(setup),
+                  onPressed: () => deleteCustomReview(review),
                 )
               : null,
           onTap: () {
-            if (onSelectSetup != null) {
-              onSelectSetup!(setup);
-              close(context, null);
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SetupDetailScreen(
-                    setups: results,
-                    initialIndex: index,
-                  ),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReviewDetailScreen(
+                  reviews: results,
+                  initialIndex: index,
                 ),
-              );
-            }
+              ),
+            );
           },
         );
       },

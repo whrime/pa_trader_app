@@ -497,13 +497,13 @@ class _TradingInputSectionState extends State<TradingInputSection> {
       if (actualExit > 0) {
         double profit = actualExit - entryPrice;
         double riskReward = profit / loss;
-        return '实际: ${riskReward.toStringAsFixed(2)}:1';
+        return '实际: ${riskReward.toStringAsFixed(3)}:1';
       } else {
         double targetPrice = double.tryParse(widget.onceTargetPriceController.text) ?? 0;
         if (targetPrice > 0) {
           double profit = targetPrice - entryPrice;
           double riskReward = profit / loss;
-          return '预期: ${riskReward.toStringAsFixed(2)}:1';
+          return '预期: ${riskReward.toStringAsFixed(3)}:1';
         }
       }
     } catch (e) {

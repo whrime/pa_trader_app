@@ -1,27 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/setup_option.dart';
+import '../models/review_option.dart';
 
-class SetupEditScreen extends StatefulWidget {
-  final SetupOption? setup;
+class ReviewEditScreen extends StatefulWidget {
+  final ReviewOption? review;
 
-  const SetupEditScreen({
-    Key? key, this.setup}) : super(key: key);
+  const ReviewEditScreen({
+    Key? key, this.review}) : super(key: key);
 
   @override
-  State<SetupEditScreen> createState() => _SetupEditScreenState();
+  State<ReviewEditScreen> createState() => _ReviewEditScreenState();
 }
 
-class _SetupEditScreenState extends State<SetupEditScreen> {
+class _ReviewEditScreenState extends State<ReviewEditScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _shortDescController;
-  late TextEditingController _conceptController;
-  late TextEditingController _entryPointController;
-  late TextEditingController _stopLossController;
-  late TextEditingController _targetPriceController;
-  late TextEditingController _reasonController;
   late TextEditingController _contentController;
   List<TextEditingController> _questionControllers = [];
   List<TextEditingController> _answerControllers = [];
@@ -31,18 +26,13 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.setup?.name ?? '');
-    _shortDescController = TextEditingController(text: widget.setup?.shortDescription ?? '');
-    _conceptController = TextEditingController(text: widget.setup?.concept ?? '');
-    _entryPointController = TextEditingController(text: widget.setup?.entryPoint ?? '');
-    _stopLossController = TextEditingController(text: widget.setup?.stopLoss ?? '');
-    _targetPriceController = TextEditingController(text: widget.setup?.targetPrice ?? '');
-    _reasonController = TextEditingController(text: widget.setup?.reason ?? '');
-    _contentController = TextEditingController(text: widget.setup?.content ?? '');
-    _imagePaths = List.from(widget.setup?.imagePaths ?? []);
+    _nameController = TextEditingController(text: widget.review?.name ?? '');
+    _shortDescController = TextEditingController(text: widget.review?.shortDescription ?? '');
+    _contentController = TextEditingController(text: widget.review?.content ?? '');
+    _imagePaths = List.from(widget.review?.imagePaths ?? []);
 
-    if (widget.setup?.qaList != null) {
-      for (var qa in widget.setup!.qaList) {
+    if (widget.review?.qaList != null) {
+      for (var qa in widget.review!.qaList) {
         _questionControllers.add(TextEditingController(text: qa.question));
         _answerControllers.add(TextEditingController(text: qa.answer));
       }
@@ -53,11 +43,6 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
   void dispose() {
     _nameController.dispose();
     _shortDescController.dispose();
-    _conceptController.dispose();
-    _entryPointController.dispose();
-    _stopLossController.dispose();
-    _targetPriceController.dispose();
-    _reasonController.dispose();
     _contentController.dispose();
     for (var c in _questionControllers) {
       c.dispose();
@@ -113,7 +98,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
     });
   }
 
-  void _saveSetup() {
+  void _saveReview() {
     if (_formKey.currentState!.validate()) {
       List<QaItem> qaItems = [];
       for (int i = 0; i < _questionControllers.length; i++) {
@@ -125,21 +110,16 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
         }
       }
 
-      final setup = SetupOption(
-        id: widget.setup?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      final review = ReviewOption(
+        id: widget.review?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         shortDescription: _shortDescController.text,
-        concept: _conceptController.text,
-        entryPoint: _entryPointController.text,
-        stopLoss: _stopLossController.text,
-        targetPrice: _targetPriceController.text,
-        reason: _reasonController.text,
-        imagePaths: _imagePaths,
         content: _contentController.text,
+        imagePaths: _imagePaths,
         qaList: qaItems,
       );
 
-      Navigator.pop(context, setup);
+      Navigator.pop(context, review);
     }
   }
 
@@ -147,11 +127,11 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.setup != null ? '编辑策略' : '新增策略'),
+        title: Text(widget.review != null ? '编辑复盘' : '新增复盘'),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: _saveSetup,
+            onPressed: _saveReview,
           ),
         ],
       ),
@@ -164,8 +144,8 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
             const SizedBox(height: 12),
             _buildInputField(
               controller: _nameController,
-              label: '策略名称',
-              hint: '请输入策略名称',
+              label: '标题',
+              hint: '请输入复盘标题',
               required: true,
             ),
             const SizedBox(height: 12),
@@ -181,56 +161,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
             const SizedBox(height: 12),
             _buildImagePicker(),
             const SizedBox(height: 24),
-            _buildSectionTitle('核心概念'),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    _buildInputField(
-                      controller: _conceptController,
-                      label: '概念',
-                      hint: '策略核心概念',
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildInputField(
-                            controller: _entryPointController,
-                            label: '入场点',
-                            hint: '入场条件',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildInputField(
-                            controller: _stopLossController,
-                            label: '止损点',
-                            hint: '止损条件',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInputField(
-                      controller: _targetPriceController,
-                      label: '目标位',
-                      hint: '目标价格计算',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInputField(
-                      controller: _reasonController,
-                      label: '本质分析',
-                      hint: '策略本质',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('详细内容'),
+            _buildSectionTitle('分析内容'),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -243,6 +174,12 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
                     border: InputBorder.none,
                   ),
                   style: const TextStyle(height: 1.8),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '请输入分析内容';
+                    }
+                    return null;
+                  },
                 ),
               ),
             ),
@@ -253,7 +190,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
                 _buildSectionTitle('补充问答'),
                 IconButton(
                   onPressed: _addQaItem,
-                  icon: const Icon(Icons.add_circle, color: Colors.blue),
+                  icon: const Icon(Icons.add_circle, color: Colors.purple),
                 ),
               ],
             ),
@@ -283,7 +220,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
                               width: 28,
                               height: 28,
                               decoration: BoxDecoration(
-                                color: Colors.blue[100],
+                                color: Colors.purple[100],
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Center(
@@ -292,7 +229,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blue[700],
+                                    color: Colors.purple[700],
                                   ),
                                 ),
                               ),
@@ -357,7 +294,7 @@ class _SetupEditScreenState extends State<SetupEditScreen> {
           width: 4,
           height: 16,
           decoration: BoxDecoration(
-            color: Colors.blue,
+            color: Colors.purple,
             borderRadius: BorderRadius.circular(2),
           ),
         ),

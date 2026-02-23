@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'setup_list_screen.dart';
 import 'trading_calculator_screen.dart';
 import 'history_screen.dart';
+import 'review_list_screen.dart';
 import '../models/trade_record.dart';
 import '../models/setup_option.dart';
+import '../models/review_option.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -20,8 +22,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final GlobalKey<TradingCalculatorScreenState> _calculatorKey = GlobalKey();
   final GlobalKey<SetupListScreenState> _setupListKey = GlobalKey();
+  final GlobalKey<ReviewListScreenState> _reviewListKey = GlobalKey();
   
   List<SetupOption> _customSetups = [];
+  List<ReviewOption> _customReviews = [];
   List<SetupOption> get allSetups {
     final customIds = _customSetups.map((s) => s.id).toSet();
     final filteredPredefined = SetupOption.predefinedList.where((s) => !customIds.contains(s.id));
@@ -50,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _handleEditRecord(record);
         },
       ),
+      ReviewListScreen(key: _reviewListKey, onReviewsChanged: _updateReviews),
     ]);
   }
 
@@ -58,6 +63,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _customSetups = customSetups;
     });
     _calculatorKey.currentState?.updateSetupOptions(allSetupOptions);
+  }
+
+  void _updateReviews(List<ReviewOption> customReviews) {
+    setState(() {
+      _customReviews = customReviews;
+    });
   }
 
   void _handleEditRecord(TradeRecord record) {
@@ -114,6 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: '历史',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.article_outlined),
+            selectedIcon: Icon(Icons.article),
+            label: '复盘',
           ),
         ],
       ),
