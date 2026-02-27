@@ -56,7 +56,7 @@ class TradingCalculatorScreenState extends State<TradingCalculatorScreen> {
   void _initControllers() {
     stockNameController = TextEditingController();
     currentTimeController = TextEditingController();
-    capitalController = TextEditingController(text: '10');
+    capitalController = TextEditingController(text: '30');
     stopLossPercentController = TextEditingController(text: '1%');
     positionPercentController = TextEditingController();
     setupController = TextEditingController();
