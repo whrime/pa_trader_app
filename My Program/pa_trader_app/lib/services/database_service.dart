@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/trade_record.dart';
+import '../models/task_card.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -24,7 +26,7 @@ class DatabaseService {
       
       return await openDatabase(
         path,
-        version: 2,
+        version: 3,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
         onOpen: (db) {
@@ -66,7 +68,19 @@ class DatabaseService {
           riskReward TEXT
         )
       ''');
-      print('Database table created successfully');
+      
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_cards(
+          id TEXT PRIMARY KEY,
+          stockName TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          periods TEXT NOT NULL,
+          dailyRecords TEXT NOT NULL
+        )
+      ''');
+      
+      print('Database tables created successfully');
     } catch (e) {
       print('Error creating table: $e');
       rethrow;
@@ -84,6 +98,19 @@ class DatabaseService {
       await db.execute('ALTER TABLE trade_records ADD COLUMN fiftyPercentRetrace TEXT');
       await db.execute('ALTER TABLE trade_records ADD COLUMN riskReward TEXT');
       print('Database upgraded to version 2');
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_cards(
+          id TEXT PRIMARY KEY,
+          stockName TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          periods TEXT NOT NULL,
+          dailyRecords TEXT NOT NULL
+        )
+      ''');
+      print('Database upgraded to version 3');
     }
   }
 
@@ -164,6 +191,101 @@ class DatabaseService {
     } catch (e) {
       print('Error getting record by id: $e');
       return null;
+    }
+  }
+
+  // Task Card methods
+  Future<void> saveTaskCard(TaskCard taskCard) async {
+    try {
+      Database db = await database;
+      await db.insert(
+        'task_cards',
+        {
+          'id': taskCard.id,
+          'stockName': taskCard.stockName,
+          'createdAt': taskCard.createdAt.toIso8601String(),
+          'updatedAt': taskCard.updatedAt.toIso8601String(),
+          'periods': jsonEncode(taskCard.periods.map((p) => p.toJson()).toList()),
+          'dailyRecords': jsonEncode(taskCard.dailyRecords.map((r) => r.toJson()).toList()),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      print('TaskCard saved: ${taskCard.id}');
+    } catch (e) {
+      print('Error saving task card: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<TaskCard>> getAllTaskCards() async {
+    try {
+      Database db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_cards',
+        orderBy: 'updatedAt DESC',
+      );
+      print('Found ${maps.length} task cards');
+      return List.generate(maps.length, (i) {
+        return TaskCard(
+          id: maps[i]['id'],
+          stockName: maps[i]['stockName'],
+          createdAt: DateTime.parse(maps[i]['createdAt']),
+          updatedAt: DateTime.parse(maps[i]['updatedAt']),
+          periods: (jsonDecode(maps[i]['periods']) as List)
+              .map((p) => TaskPeriod.fromJson(p))
+              .toList(),
+          dailyRecords: (jsonDecode(maps[i]['dailyRecords']) as List)
+              .map((r) => DailyRecord.fromJson(r))
+              .toList(),
+        );
+      });
+    } catch (e) {
+      print('Error getting task cards: $e');
+      return [];
+    }
+  }
+
+  Future<TaskCard?> getTaskCard(String id) async {
+    try {
+      Database db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_cards',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (maps.isNotEmpty) {
+        return TaskCard(
+          id: maps[0]['id'],
+          stockName: maps[0]['stockName'],
+          createdAt: DateTime.parse(maps[0]['createdAt']),
+          updatedAt: DateTime.parse(maps[0]['updatedAt']),
+          periods: (jsonDecode(maps[0]['periods']) as List)
+              .map((p) => TaskPeriod.fromJson(p))
+              .toList(),
+          dailyRecords: (jsonDecode(maps[0]['dailyRecords']) as List)
+              .map((r) => DailyRecord.fromJson(r))
+              .toList(),
+        );
+      }
+      return null;
+    } catch (e) {
+      print('Error getting task card: $e');
+      return null;
+    }
+  }
+
+  Future<void> deleteTaskCard(String id) async {
+    try {
+      Database db = await database;
+      await db.delete(
+        'task_cards',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      print('TaskCard deleted: $id');
+    } catch (e) {
+      print('Error deleting task card: $e');
+      rethrow;
     }
   }
 }

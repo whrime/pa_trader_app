@@ -3,6 +3,7 @@ import 'setup_list_screen.dart';
 import 'trading_calculator_screen.dart';
 import 'history_screen.dart';
 import 'review_list_screen.dart';
+import 'task_card_list_screen.dart';
 import '../models/trade_record.dart';
 import '../models/setup_option.dart';
 import '../models/review_option.dart';
@@ -49,11 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _screens.addAll([
       SetupListScreen(key: _setupListKey, onSetupsChanged: _updateSetups),
       TradingCalculatorScreen(key: _calculatorKey),
-      HistoryScreen(
-        onEditRecord: (record) {
-          _handleEditRecord(record);
-        },
-      ),
+      const TaskCardListScreen(),
       ReviewListScreen(key: _reviewListKey, onReviewsChanged: _updateReviews),
     ]);
   }
@@ -122,9 +119,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: '计算器',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: '历史',
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
+            label: '任务卡',
           ),
           NavigationDestination(
             icon: Icon(Icons.article_outlined),
