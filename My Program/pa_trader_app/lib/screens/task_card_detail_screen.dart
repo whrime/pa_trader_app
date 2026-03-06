@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task_card.dart';
+import '../models/task_group.dart';
 import '../services/database_service.dart';
 import 'task_card_edit_screen.dart';
 
@@ -14,12 +15,25 @@ class TaskCardDetailScreen extends StatefulWidget {
 
 class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
   late TaskCard _taskCard;
+  TaskGroup? _group;
   final DatabaseService _databaseService = DatabaseService();
 
   @override
   void initState() {
     super.initState();
     _taskCard = widget.taskCard;
+    _loadGroup();
+  }
+
+  Future<void> _loadGroup() async {
+    if (_taskCard.groupId != null) {
+      final group = await _databaseService.getTaskGroup(_taskCard.groupId!);
+      if (mounted) {
+        setState(() {
+          _group = group;
+        });
+      }
+    }
   }
 
   Future<void> _refreshTaskCard() async {
@@ -28,6 +42,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
       setState(() {
         _taskCard = card;
       });
+      await _loadGroup();
     }
   }
 
@@ -175,6 +190,32 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            if (_group != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.green[300]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.folder, size: 16, color: Colors.green[700]),
+                    const SizedBox(width: 4),
+                    Text(
+                      _group!.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             const Divider(),
             const SizedBox(height: 8),
             Row(

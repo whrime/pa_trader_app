@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/trade_record.dart';
 import '../models/task_card.dart';
+import '../models/task_group.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -26,7 +27,7 @@ class DatabaseService {
       
       return await openDatabase(
         path,
-        version: 3,
+        version: 4,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
         onOpen: (db) {
@@ -73,10 +74,22 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS task_cards(
           id TEXT PRIMARY KEY,
           stockName TEXT NOT NULL,
+          groupId TEXT,
           createdAt TEXT NOT NULL,
           updatedAt TEXT NOT NULL,
           periods TEXT NOT NULL,
           dailyRecords TEXT NOT NULL
+        )
+      ''');
+      
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_groups(
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          sortOrder INTEGER NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
         )
       ''');
       
@@ -111,6 +124,20 @@ class DatabaseService {
         )
       ''');
       print('Database upgraded to version 3');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE task_cards ADD COLUMN groupId TEXT');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_groups(
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          sortOrder INTEGER NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      ''');
+      print('Database upgraded to version 4');
     }
   }
 
@@ -203,6 +230,7 @@ class DatabaseService {
         {
           'id': taskCard.id,
           'stockName': taskCard.stockName,
+          'groupId': taskCard.groupId,
           'createdAt': taskCard.createdAt.toIso8601String(),
           'updatedAt': taskCard.updatedAt.toIso8601String(),
           'periods': jsonEncode(taskCard.periods.map((p) => p.toJson()).toList()),
@@ -285,6 +313,166 @@ class DatabaseService {
       print('TaskCard deleted: $id');
     } catch (e) {
       print('Error deleting task card: $e');
+      rethrow;
+    }
+  }
+
+  // Task Group methods
+  Future<void> saveTaskGroup(TaskGroup group) async {
+    try {
+      Database db = await database;
+      await db.insert(
+        'task_groups',
+        {
+          'id': group.id,
+          'name': group.name,
+          'description': group.description,
+          'sortOrder': group.sortOrder,
+          'createdAt': group.createdAt.toIso8601String(),
+          'updatedAt': group.updatedAt.toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      print('TaskGroup saved: ${group.id}');
+    } catch (e) {
+      print('Error saving task group: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<TaskGroup>> getAllTaskGroups() async {
+    try {
+      Database db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_groups',
+        orderBy: 'sortOrder ASC',
+      );
+      print('Found ${maps.length} task groups');
+      return List.generate(maps.length, (i) {
+        return TaskGroup(
+          id: maps[i]['id'],
+          name: maps[i]['name'],
+          description: maps[i]['description'],
+          sortOrder: maps[i]['sortOrder'],
+          createdAt: DateTime.parse(maps[i]['createdAt']),
+          updatedAt: DateTime.parse(maps[i]['updatedAt']),
+        );
+      });
+    } catch (e) {
+      print('Error getting task groups: $e');
+      return [];
+    }
+  }
+
+  Future<TaskGroup?> getTaskGroup(String id) async {
+    try {
+      Database db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_groups',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (maps.isNotEmpty) {
+        return TaskGroup(
+          id: maps[0]['id'],
+          name: maps[0]['name'],
+          description: maps[0]['description'],
+          sortOrder: maps[0]['sortOrder'],
+          createdAt: DateTime.parse(maps[0]['createdAt']),
+          updatedAt: DateTime.parse(maps[0]['updatedAt']),
+        );
+      }
+      return null;
+    } catch (e) {
+      print('Error getting task group: $e');
+      return null;
+    }
+  }
+
+  Future<void> deleteTaskGroup(String id) async {
+    try {
+      Database db = await database;
+      // 删除分组前，将该分组下的任务卡设为未分组
+      await db.update(
+        'task_cards',
+        {'groupId': null},
+        where: 'groupId = ?',
+        whereArgs: [id],
+      );
+      // 删除分组
+      await db.delete(
+        'task_groups',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      print('TaskGroup deleted: $id');
+    } catch (e) {
+      print('Error deleting task group: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<TaskCard>> getTaskCardsByGroup(String? groupId) async {
+    try {
+      Database db = await database;
+      List<Map<String, dynamic>> maps;
+      
+      if (groupId == null || groupId == TaskGroupPresets.allGroupId) {
+        // 获取所有任务卡
+        maps = await db.query(
+          'task_cards',
+          orderBy: 'updatedAt DESC',
+        );
+      } else if (groupId == TaskGroupPresets.ungroupedId) {
+        // 获取未分组的任务卡
+        maps = await db.query(
+          'task_cards',
+          where: 'groupId IS NULL',
+          orderBy: 'updatedAt DESC',
+        );
+      } else {
+        // 获取指定分组的任务卡
+        maps = await db.query(
+          'task_cards',
+          where: 'groupId = ?',
+          whereArgs: [groupId],
+          orderBy: 'updatedAt DESC',
+        );
+      }
+      
+      return List.generate(maps.length, (i) {
+        return TaskCard(
+          id: maps[i]['id'],
+          stockName: maps[i]['stockName'],
+          groupId: maps[i]['groupId'],
+          createdAt: DateTime.parse(maps[i]['createdAt']),
+          updatedAt: DateTime.parse(maps[i]['updatedAt']),
+          periods: (jsonDecode(maps[i]['periods']) as List)
+              .map((p) => TaskPeriod.fromJson(p))
+              .toList(),
+          dailyRecords: (jsonDecode(maps[i]['dailyRecords']) as List)
+              .map((r) => DailyRecord.fromJson(r))
+              .toList(),
+        );
+      });
+    } catch (e) {
+      print('Error getting task cards by group: $e');
+      return [];
+    }
+  }
+
+  Future<void> moveTaskCardToGroup(String cardId, String? groupId) async {
+    try {
+      Database db = await database;
+      await db.update(
+        'task_cards',
+        {'groupId': groupId},
+        where: 'id = ?',
+        whereArgs: [cardId],
+      );
+      print('TaskCard moved to group: $cardId -> $groupId');
+    } catch (e) {
+      print('Error moving task card to group: $e');
       rethrow;
     }
   }

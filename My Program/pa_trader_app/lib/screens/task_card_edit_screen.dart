@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/task_card.dart';
+import '../models/task_group.dart';
 import '../services/database_service.dart';
 
 class TaskCardEditScreen extends StatefulWidget {
@@ -18,14 +19,18 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
   final DatabaseService _databaseService = DatabaseService();
   
   List<TaskPeriod> _periods = [];
+  List<TaskGroup> _groups = [];
+  String? _selectedGroupId;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _loadGroups();
     if (widget.taskCard != null) {
       _stockNameController.text = widget.taskCard!.stockName;
       _periods = List.from(widget.taskCard!.periods);
+      _selectedGroupId = widget.taskCard!.groupId;
     }
     // 默认添加120分钟周期（必填）
     if (_periods.isEmpty) {
@@ -34,6 +39,17 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
         sortOrder: 0,
         isRequired: true,
       ));
+    }
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final groups = await _databaseService.getAllTaskGroups();
+      setState(() {
+        _groups = groups;
+      });
+    } catch (e) {
+      print('加载分组失败: $e');
     }
   }
 
@@ -290,6 +306,7 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
       final taskCard = TaskCard(
         id: widget.taskCard?.id ?? const Uuid().v4(),
         stockName: _stockNameController.text.trim(),
+        groupId: _selectedGroupId,
         createdAt: widget.taskCard?.createdAt ?? now,
         updatedAt: now,
         periods: _periods,
@@ -343,24 +360,49 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _stockNameController,
-              decoration: const InputDecoration(
-                labelText: '股票名称',
-                hintText: '输入股票名称或代码',
-                prefixIcon: Icon(Icons.business),
-                border: OutlineInputBorder(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              TextFormField(
+                controller: _stockNameController,
+                decoration: const InputDecoration(
+                  labelText: '股票名称',
+                  hintText: '输入股票名称或代码',
+                  prefixIcon: Icon(Icons.business),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '请输入股票名称';
+                  }
+                  return null;
+                },
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return '请输入股票名称';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedGroupId,
+                decoration: const InputDecoration(
+                  labelText: '所属分组',
+                  hintText: '选择分组',
+                  prefixIcon: Icon(Icons.folder),
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('未分组'),
+                  ),
+                  ..._groups.map((group) => DropdownMenuItem(
+                    value: group.id,
+                    child: Text(group.name),
+                  )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGroupId = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

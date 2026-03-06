@@ -6,10 +6,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 import '../models/task_card.dart';
+import '../models/task_group.dart';
 import '../services/database_service.dart';
 import 'task_card_edit_screen.dart';
 import 'task_card_detail_screen.dart';
+import 'task_group_manage_screen.dart';
 
 class TaskCardListScreen extends StatefulWidget {
   const TaskCardListScreen({Key? key}) : super(key: key);
@@ -21,34 +24,67 @@ class TaskCardListScreen extends StatefulWidget {
 class _TaskCardListScreenState extends State<TaskCardListScreen> {
   final DatabaseService _databaseService = DatabaseService();
   List<TaskCard> _taskCards = [];
+  List<TaskGroup> _groups = [];
+  String? _selectedGroupId;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadTaskCards();
+    _loadData();
   }
 
-  Future<void> _loadTaskCards() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final cards = await _databaseService.getAllTaskCards();
-      // 按优先级排序
-      cards.sort((a, b) {
-        final scoreA = a.priorityScore.abs();
-        final scoreB = b.priorityScore.abs();
-        return scoreB.compareTo(scoreA);
-      });
-      setState(() {
-        _taskCards = cards;
-        _isLoading = false;
-      });
+      await _loadGroups();
+      await _loadTaskCards();
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('加载失败: $e')),
       );
     }
+  }
+
+  Future<void> _loadGroups() async {
+    final groups = await _databaseService.getAllTaskGroups();
+    final defaultGroups = TaskGroupPresets.defaultGroups;
+    
+    // 合并默认分组和自定义分组
+    final allGroups = [...defaultGroups, ...groups];
+    
+    // 按 sortOrder 排序
+    allGroups.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    
+    // 如果当前选中的分组不存在，重置为"全部"
+    if (_selectedGroupId != null && 
+        !allGroups.any((g) => g.id == _selectedGroupId)) {
+      _selectedGroupId = TaskGroupPresets.allGroupId;
+    }
+    
+    // 如果还没有选中分组，默认选中"全部"
+    if (_selectedGroupId == null) {
+      _selectedGroupId = TaskGroupPresets.allGroupId;
+    }
+    
+    setState(() {
+      _groups = allGroups;
+    });
+  }
+
+  Future<void> _loadTaskCards() async {
+    final cards = await _databaseService.getTaskCardsByGroup(_selectedGroupId);
+    // 按优先级排序
+    cards.sort((a, b) {
+      final scoreA = a.priorityScore.abs();
+      final scoreB = b.priorityScore.abs();
+      return scoreB.compareTo(scoreA);
+    });
+    setState(() {
+      _taskCards = cards;
+      _isLoading = false;
+    });
   }
 
   Future<void> _deleteTaskCard(String id) async {
@@ -73,7 +109,7 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
     if (confirm == true) {
       try {
         await _databaseService.deleteTaskCard(id);
-        await _loadTaskCards();
+        await _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('删除成功')),
         );
@@ -82,6 +118,107 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
           SnackBar(content: Text('删除失败: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _moveTaskCardToGroup(TaskCard card) async {
+    final groups = _groups.where((g) => 
+      g.id != TaskGroupPresets.allGroupId && 
+      g.id != TaskGroupPresets.ungroupedId
+    ).toList();
+    
+    if (groups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先创建分组')),
+      );
+      return;
+    }
+
+    final selectedGroup = await showDialog<TaskGroup>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('移动到分组'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              return ListTile(
+                title: Text(group.name),
+                subtitle: group.description != null ? Text(group.description!) : null,
+                onTap: () => Navigator.pop(context, group),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedGroup != null) {
+      try {
+        await _databaseService.moveTaskCardToGroup(card.id, selectedGroup!.id);
+        await _loadTaskCards();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已移动到 ${selectedGroup!.name}')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('移动失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportToTxt() async {
+    try {
+      // 使用JSON格式导出，便于导入时解析
+      final exportData = {
+        'groups': _groups.where((g) => 
+          g.id != TaskGroupPresets.allGroupId && 
+          g.id != TaskGroupPresets.ungroupedId
+        ).map((g) => g.toJson()).toList(),
+        'taskCards': _taskCards.map((card) => card.toJson()).toList(),
+      };
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      // 添加文件头信息
+      final StringBuffer buffer = StringBuffer();
+      buffer.writeln('# 任务卡数据导出');
+      buffer.writeln('# 导出时间: ${DateTime.now()}');
+      buffer.writeln('# 版本: 2.0');
+      buffer.writeln('# ============================================');
+      buffer.writeln();
+      buffer.writeln('# 以下是JSON格式数据，请勿修改此标记之间的内容');
+      buffer.writeln('# --- JSON DATA START ---');
+      buffer.writeln(jsonString);
+      buffer.writeln('# --- JSON DATA END ---');
+      buffer.writeln();
+      buffer.writeln('# 以上是JSON格式数据');
+
+      // 保存到下载目录
+      final directory = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      final fileName = 'task_cards_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(buffer.toString());
+
+      // 自动打开文件夹并选中文件
+      await _openFolderAndSelectFile(file.path);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出成功: ${file.path}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出失败: $e')),
+      );
     }
   }
 
@@ -118,45 +255,6 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
     }
   }
 
-  Future<void> _exportToTxt() async {
-    try {
-      // 使用JSON格式导出，便于导入时解析
-      final exportData = _taskCards.map((card) => card.toJson()).toList();
-      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-
-      // 添加文件头信息
-      final StringBuffer buffer = StringBuffer();
-      buffer.writeln('# 任务卡数据导出');
-      buffer.writeln('# 导出时间: ${DateTime.now()}');
-      buffer.writeln('# 版本: 1.0');
-      buffer.writeln('# ============================================');
-      buffer.writeln();
-      buffer.writeln('# 以下是JSON格式数据，请勿修改此标记之间的内容');
-      buffer.writeln('# --- JSON DATA START ---');
-      buffer.writeln(jsonString);
-      buffer.writeln('# --- JSON DATA END ---');
-      buffer.writeln();
-      buffer.writeln('# 以上是JSON格式数据');
-
-      // 保存到下载目录
-      final directory = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
-      final fileName = 'task_cards_${DateTime.now().millisecondsSinceEpoch}.txt';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(buffer.toString());
-
-      // 自动打开文件夹并选中文件
-      await _openFolderAndSelectFile(file.path);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导出成功: ${file.path}')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导出失败: $e')),
-      );
-    }
-  }
-
   Future<void> _importFromTxt() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -169,7 +267,7 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
       final file = File(result.files.first.path!);
       final content = await file.readAsString();
 
-      List<dynamic>? jsonData;
+      Map<String, dynamic>? jsonData;
 
       // 首先尝试从导出的txt文件中提取JSON数据
       final startMarker = '# --- JSON DATA START ---';
@@ -206,49 +304,59 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
 
       // 解析数据并保存
       if (jsonData != null) {
-        int importCount = 0;
+        int groupCount = 0;
+        int cardCount = 0;
         
-        if (jsonData is List) {
-          for (var item in jsonData) {
-            try {
-              final card = TaskCard.fromJson(item as Map<String, dynamic>);
-              // 生成新的ID以避免冲突
-              final newCard = TaskCard(
-                id: card.id, // 保留原ID，如果冲突会覆盖
-                stockName: card.stockName,
-                createdAt: card.createdAt,
-                updatedAt: DateTime.now(),
-                periods: card.periods,
-                dailyRecords: card.dailyRecords,
-              );
-              await _databaseService.saveTaskCard(newCard);
-              importCount++;
-            } catch (e) {
-              print('导入单个任务卡失败: $e');
+        // 导入分组
+        if (jsonData!.containsKey('groups')) {
+          final groups = jsonData['groups'] as List?;
+          if (groups != null) {
+            for (var item in groups) {
+              try {
+                final group = TaskGroup.fromJson(item as Map<String, dynamic>);
+                await _databaseService.saveTaskGroup(group);
+                groupCount++;
+              } catch (e) {
+                print('导入分组失败: $e');
+              }
             }
           }
-        } else if (jsonData is Map) {
-          try {
-            final card = TaskCard.fromJson(jsonData as Map<String, dynamic>);
-            final newCard = TaskCard(
-              id: card.id,
-              stockName: card.stockName,
-              createdAt: card.createdAt,
-              updatedAt: DateTime.now(),
-              periods: card.periods,
-              dailyRecords: card.dailyRecords,
-            );
-            await _databaseService.saveTaskCard(newCard);
-            importCount = 1;
-          } catch (e) {
-            print('导入任务卡失败: $e');
+        }
+        
+        // 导入任务卡
+        if (jsonData.containsKey('taskCards')) {
+          final cards = jsonData['taskCards'] as List?;
+          if (cards != null) {
+            for (var item in cards) {
+              try {
+                final card = TaskCard.fromJson(item as Map<String, dynamic>);
+                final newCard = TaskCard(
+                  id: card.id,
+                  stockName: card.stockName,
+                  groupId: card.groupId,
+                  createdAt: card.createdAt,
+                  updatedAt: DateTime.now(),
+                  periods: card.periods,
+                  dailyRecords: card.dailyRecords,
+                );
+                await _databaseService.saveTaskCard(newCard);
+                cardCount++;
+              } catch (e) {
+                print('导入任务卡失败: $e');
+              }
+            }
           }
         }
 
-        if (importCount > 0) {
-          await _loadTaskCards();
+        if (groupCount > 0 || cardCount > 0) {
+          await _loadData();
+          final message = groupCount > 0 && cardCount > 0
+              ? '成功导入 $groupCount 个分组和 $cardCount 个任务卡'
+              : groupCount > 0
+                  ? '成功导入 $groupCount 个分组'
+                  : '成功导入 $cardCount 个任务卡';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('成功导入 $importCount 个任务卡')),
+            SnackBar(content: Text(message)),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -296,6 +404,13 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
     );
   }
 
+  void _onGroupSelected(String groupId) {
+    setState(() {
+      _selectedGroupId = groupId;
+    });
+    _loadTaskCards();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -306,6 +421,21 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
             icon: const Icon(Icons.help_outline),
             onPressed: _showScoreHelp,
             tooltip: '评分说明',
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TaskGroupManageScreen(),
+                ),
+              );
+              if (result == true) {
+                await _loadData();
+              }
+            },
+            tooltip: '分组管理',
           ),
           IconButton(
             icon: const Icon(Icons.file_upload),
@@ -319,16 +449,25 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadTaskCards,
+            onPressed: _loadData,
             tooltip: '刷新',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _taskCards.isEmpty
-              ? _buildEmptyView()
-              : _buildListView(),
+          : Column(
+              children: [
+                // 分组选择器
+                _buildGroupSelector(),
+                // 任务卡列表
+                Expanded(
+                  child: _taskCards.isEmpty
+                      ? _buildEmptyView()
+                      : _buildListView(),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.push(
@@ -338,10 +477,55 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
             ),
           );
           if (result == true) {
-            _loadTaskCards();
+            await _loadData();
           }
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildGroupSelector() {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        itemCount: _groups.length,
+        itemBuilder: (context, index) {
+          final group = _groups[index];
+          final isSelected = _selectedGroupId == group.id;
+          
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilterChip(
+              label: Text(group.name),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  _onGroupSelected(group.id);
+                }
+              },
+              selectedColor: group.id == TaskGroupPresets.allGroupId
+                  ? Colors.blue
+                  : group.id == TaskGroupPresets.ungroupedId
+                      ? Colors.orange
+                      : Colors.green,
+              checkmarkColor: Colors.white,
+            ),
+          );
+        },
       ),
     );
   }
@@ -353,23 +537,29 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
         children: [
           const Icon(Icons.assignment, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text('暂无任务卡', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TaskCardEditScreen(),
-                ),
-              );
-              if (result == true) {
-                _loadTaskCards();
-              }
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('添加第一个任务卡'),
+          Text(
+            _selectedGroupId == TaskGroupPresets.ungroupedId
+                ? '暂无未分组的任务卡'
+                : '暂无任务卡',
+            style: const TextStyle(color: Colors.grey),
           ),
+          const SizedBox(height: 8),
+          if (_selectedGroupId != TaskGroupPresets.ungroupedId)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TaskCardEditScreen(),
+                  ),
+                );
+                if (result == true) {
+                  await _loadData();
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('添加第一个任务卡'),
+            ),
         ],
       ),
     );
@@ -391,7 +581,7 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
               ),
             );
             if (result == true) {
-              _loadTaskCards();
+              await _loadData();
             }
           },
           onEdit: () async {
@@ -402,10 +592,11 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
               ),
             );
             if (result == true) {
-              _loadTaskCards();
+              await _loadData();
             }
           },
           onDelete: () => _deleteTaskCard(card.id),
+          onMoveToGroup: () => _moveTaskCardToGroup(card),
         );
       },
     );
@@ -417,12 +608,14 @@ class _TaskCardItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onMoveToGroup;
 
   const _TaskCardItem({
     required this.card,
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
+    required this.onMoveToGroup,
   });
 
   @override
@@ -545,6 +738,14 @@ class _TaskCardItem extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.folder_open, size: 20, color: Colors.blue),
+                    onPressed: onMoveToGroup,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: '移动到分组',
+                  ),
+                  const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
                     onPressed: onEdit,

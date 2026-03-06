@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class TaskCard {
   final String id;
   final String stockName;
+  final String? groupId; // 所属分组ID
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<TaskPeriod> periods;
@@ -11,6 +12,7 @@ class TaskCard {
   TaskCard({
     required this.id,
     required this.stockName,
+    this.groupId,
     required this.createdAt,
     required this.updatedAt,
     required this.periods,
@@ -20,6 +22,7 @@ class TaskCard {
   TaskCard copyWith({
     String? id,
     String? stockName,
+    String? groupId,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<TaskPeriod>? periods,
@@ -28,6 +31,7 @@ class TaskCard {
     return TaskCard(
       id: id ?? this.id,
       stockName: stockName ?? this.stockName,
+      groupId: groupId ?? this.groupId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       periods: periods ?? this.periods,
@@ -38,6 +42,7 @@ class TaskCard {
   Map<String, dynamic> toJson() => {
         'id': id,
         'stockName': stockName,
+        'groupId': groupId,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'periods': periods.map((p) => p.toJson()).toList(),
@@ -48,6 +53,7 @@ class TaskCard {
     return TaskCard(
       id: json['id'] ?? '',
       stockName: json['stockName'] ?? '',
+      groupId: json['groupId'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       periods: (json['periods'] as List?)
