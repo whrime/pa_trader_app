@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'task_alert.dart';
 
 class TaskCard {
   final String id;
@@ -115,12 +116,14 @@ class TaskPeriod {
   final int sortOrder; // 排序顺序，数字越小越优先展示
   final bool isRequired; // 是否必填（120分钟为true）
   PeriodData? data;
+  AlertSetting? alertSetting;
 
   TaskPeriod({
     required this.periodType,
     required this.sortOrder,
     this.isRequired = false,
     this.data,
+    this.alertSetting,
   });
 
   double get weight {
@@ -150,6 +153,7 @@ class TaskPeriod {
         'sortOrder': sortOrder,
         'isRequired': isRequired,
         'data': data?.toJson(),
+        'alertSetting': alertSetting?.toJson(),
       };
 
   factory TaskPeriod.fromJson(Map<String, dynamic> json) {
@@ -158,6 +162,7 @@ class TaskPeriod {
       sortOrder: json['sortOrder'] ?? 0,
       isRequired: json['isRequired'] ?? false,
       data: json['data'] != null ? PeriodData.fromJson(json['data']) : null,
+      alertSetting: json['alertSetting'] != null ? AlertSetting.fromJson(json['alertSetting']) : null,
     );
   }
 }

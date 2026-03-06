@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/task_card.dart';
 import '../models/task_group.dart';
+import '../models/task_alert.dart';
 import '../services/database_service.dart';
 import 'task_card_edit_screen.dart';
 
 class TaskCardDetailScreen extends StatefulWidget {
   final TaskCard taskCard;
+  final List<TaskCard>? taskCards;
+  final int? initialIndex;
 
-  const TaskCardDetailScreen({Key? key, required this.taskCard}) : super(key: key);
+  const TaskCardDetailScreen({
+    Key? key, 
+    required this.taskCard,
+    this.taskCards,
+    this.initialIndex,
+  }) : super(key: key);
 
   @override
   State<TaskCardDetailScreen> createState() => _TaskCardDetailScreenState();
@@ -15,6 +23,8 @@ class TaskCardDetailScreen extends StatefulWidget {
 
 class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
   late TaskCard _taskCard;
+  late PageController _pageController;
+  late int _currentIndex;
   TaskGroup? _group;
   final DatabaseService _databaseService = DatabaseService();
 
@@ -22,7 +32,33 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
   void initState() {
     super.initState();
     _taskCard = widget.taskCard;
+    _currentIndex = widget.initialIndex ?? 0;
+    _pageController = PageController(initialPage: _currentIndex);
     _loadGroup();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToPrevious() {
+    if (widget.taskCards != null && _currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _goToNext() {
+    if (widget.taskCards != null && _currentIndex < widget.taskCards!.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _loadGroup() async {
@@ -69,64 +105,188 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
     final priorityColor = _taskCard.priorityLevel.color;
     final score = _taskCard.priorityScore;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_taskCard.stockName),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: _showScoreHelp,
-            tooltip: '评分说明',
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
-                ),
-              );
-              if (result == true) {
-                await _refreshTaskCard();
-              }
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 头部信息卡片
-            _buildHeaderCard(priorityColor, score),
-            const SizedBox(height: 16),
-            // 周期数据列表
-            ..._buildPeriodCards(),
-            const SizedBox(height: 32),
+    if (widget.taskCards != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_taskCard.stockName),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              onPressed: _showScoreHelp,
+              tooltip: '评分说明',
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
+                  ),
+                );
+                if (result == true) {
+                  await _refreshTaskCard();
+                }
+              },
+            ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
+        body: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                    _taskCard = widget.taskCards![index];
+                    _loadGroup();
+                  });
+                },
+                itemCount: widget.taskCards!.length,
+                itemBuilder: (context, index) {
+                  final card = widget.taskCards![index];
+                  return _buildTaskCardContent(card, priorityColor, score);
+                },
+              ),
             ),
-          );
-          if (result == true) {
-            await _refreshTaskCard();
-          }
-        },
-        icon: const Icon(Icons.edit),
-        label: const Text('编辑数据'),
+            _buildNavigationBar(),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
+              ),
+            );
+            if (result == true) {
+              await _refreshTaskCard();
+            }
+          },
+          icon: const Icon(Icons.edit),
+          label: const Text('编辑数据'),
+        ),
+      );
+    } else {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_taskCard.stockName),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              onPressed: _showScoreHelp,
+              tooltip: '评分说明',
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
+                  ),
+                );
+                if (result == true) {
+                  await _refreshTaskCard();
+                }
+              },
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: _buildTaskCardContent(_taskCard, priorityColor, score),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskCardEditScreen(taskCard: _taskCard),
+              ),
+            );
+            if (result == true) {
+              await _refreshTaskCard();
+            }
+          },
+          icon: const Icon(Icons.edit),
+          label: const Text('编辑数据'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildTaskCardContent(TaskCard card, Color priorityColor, double score) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 头部信息卡片
+        _buildHeaderCard(card, priorityColor, score),
+        const SizedBox(height: 16),
+        // 周期数据列表
+        ..._buildPeriodCards(card),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildNavigationBar() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _currentIndex > 0 ? _goToPrevious : null,
+              icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+              label: const Text('上一个'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            Text(
+              '${_currentIndex + 1} / ${widget.taskCards!.length}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _currentIndex < widget.taskCards!.length - 1 ? _goToNext : null,
+              icon: const Text('下一个'),
+              label: const Icon(Icons.keyboard_arrow_down, size: 20),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeaderCard(Color priorityColor, double score) {
+  Widget _buildHeaderCard(TaskCard card, Color priorityColor, double score) {
     return Card(
       elevation: 4,
       child: Container(
@@ -158,7 +318,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _taskCard.priorityLevel.name,
+                  card.priorityLevel.name,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -221,14 +381,14 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildInfoItem('周期数', '${_taskCard.periods.length}'),
+                _buildInfoItem('周期数', '${card.periods.length}'),
                 _buildInfoItem(
                   '已填写',
-                  '${_taskCard.periods.where((p) => p.data != null).length}',
+                  '${card.periods.where((p) => p.data != null).length}',
                 ),
                 _buildInfoItem(
                   '更新',
-                  '${_taskCard.updatedAt.month}/${_taskCard.updatedAt.day}',
+                  '${card.updatedAt.month}/${card.updatedAt.day}',
                 ),
               ],
             ),
@@ -260,8 +420,8 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
     );
   }
 
-  List<Widget> _buildPeriodCards() {
-    if (_taskCard.periods.isEmpty) {
+  List<Widget> _buildPeriodCards(TaskCard card) {
+    if (card.periods.isEmpty) {
       return [
         Container(
           padding: const EdgeInsets.all(32),
@@ -279,7 +439,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
       ];
     }
 
-    return _taskCard.periods.asMap().entries.map((entry) {
+    return card.periods.asMap().entries.map((entry) {
       final index = entry.key;
       final period = entry.value;
       final data = period.data;
@@ -297,6 +457,19 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
           ),
           title: Row(
             children: [
+              // 预警图标
+              if (period.alertSetting != null &&
+                  (period.alertSetting!.upperPrices.isNotEmpty ||
+                      period.alertSetting!.lowerPrices.isNotEmpty))
+                const Icon(
+                  Icons.notifications_active,
+                  color: Colors.orange,
+                  size: 16,
+                ),
+              if (period.alertSetting != null &&
+                  (period.alertSetting!.upperPrices.isNotEmpty ||
+                      period.alertSetting!.lowerPrices.isNotEmpty))
+                const SizedBox(width: 8),
               Text(
                 period.periodType,
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -369,6 +542,16 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                         _buildDataRow('信号K', data.signalK),
                         _buildDataRow('总结', data.summary),
                         const SizedBox(height: 12),
+                        // 预警价格设置
+                        if (period.alertSetting != null &&
+                            (period.alertSetting!.upperPrices.isNotEmpty ||
+                                period.alertSetting!.lowerPrices.isNotEmpty))
+                          _buildAlertSettingCard(period.alertSetting!),
+                        // 预警达到按钮
+                        if (period.alertSetting != null &&
+                            (period.alertSetting!.upperPrices.isNotEmpty ||
+                                period.alertSetting!.lowerPrices.isNotEmpty))
+                          _buildAlertTriggerButton(card, period),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
@@ -445,7 +628,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      TaskCardEditScreen(taskCard: _taskCard),
+                                      TaskCardEditScreen(taskCard: card),
                                 ),
                               );
                               if (result == true) {
@@ -514,5 +697,153 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
     if (score > -3) return '偏空信号';
     if (score > -4) return '明显做空';
     return '强烈做空';
+  }
+
+  Widget _buildAlertSettingCard(AlertSetting alertSetting) {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      color: Colors.orange[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.notifications, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  '预警设置',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFE65100), // Colors.orange[800]
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (alertSetting.upperPrices.isNotEmpty) ...[
+              const Text(
+                '上沿价格（卖出预警）:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: alertSetting.upperPrices.map((price) {
+                  return Chip(
+                    label: Text('${price.toStringAsFixed(2)}'),
+                    backgroundColor: Color(0xFFFFEBEE), // Colors.red[100]
+                    labelStyle: TextStyle(color: Color(0xFFB71C1C)), // Colors.red[700]
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (alertSetting.lowerPrices.isNotEmpty) ...[
+              const Text(
+                '下沿价格（买入预警）:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: alertSetting.lowerPrices.map((price) {
+                  return Chip(
+                    label: Text('${price.toStringAsFixed(2)}'),
+                    backgroundColor: Color(0xFFE8F5E0), // Colors.green[100]
+                    labelStyle: TextStyle(color: Color(0xFF1B5E20)), // Colors.green[700]
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlertTriggerButton(TaskCard card, TaskPeriod period) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('预警达到'),
+              content: const Text('确认此周期的预警已达到？'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('确认'),
+                ),
+              ],
+            ),
+          );
+
+          if (result == true) {
+            // 记录预警达到
+            final trigger = AlertTrigger(
+              taskCardId: card.id,
+              stockName: card.stockName,
+              periodType: period.periodType,
+              type: period.alertSetting!.upperPrices.isNotEmpty ? AlertType.upper : AlertType.lower,
+              price: period.alertSetting!.upperPrices.isNotEmpty 
+                  ? period.alertSetting!.upperPrices.first 
+                  : period.alertSetting!.lowerPrices.first,
+              triggeredPrice: 0, // 实际价格需要从外部获取
+              triggeredAt: DateTime.now(),
+            );
+            
+            await _databaseService.saveAlertTrigger(trigger);
+            
+            // 询问是否修改周期卡片
+            final modifyResult = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('修改周期卡片'),
+                content: const Text('是否需要修改此周期的卡片信息？'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('稍后'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('现在修改'),
+                  ),
+                ],
+              ),
+            );
+
+            if (modifyResult == true) {
+              // 跳转到编辑界面
+              final editResult = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TaskCardEditScreen(taskCard: card),
+                ),
+              );
+              if (editResult == true) {
+                await _refreshTaskCard();
+              }
+            }
+          }
+        },
+        icon: const Icon(Icons.notification_important),
+        label: const Text('标记预警达到'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+        ),
+      ),
+    );
   }
 }

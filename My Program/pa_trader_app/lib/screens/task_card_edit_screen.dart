@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/task_card.dart';
 import '../models/task_group.dart';
+import '../models/task_alert.dart';
 import '../services/database_service.dart';
+import 'alert_setting_screen.dart';
 
 class TaskCardEditScreen extends StatefulWidget {
   final TaskCard? taskCard;
@@ -147,6 +149,29 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
       _periods.removeAt(index);
       _sortPeriods();
     });
+  }
+
+  void _editAlertSetting(int index) async {
+    final period = _periods[index];
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AlertSettingScreen(
+          alertSetting: period.alertSetting,
+          onSave: (alertSetting) {
+            setState(() {
+              _periods[index] = TaskPeriod(
+                periodType: period.periodType,
+                sortOrder: period.sortOrder,
+                isRequired: period.isRequired,
+                data: period.data,
+                alertSetting: alertSetting,
+              );
+            });
+          },
+        ),
+      ),
+    );
   }
 
   void _editPeriodData(int index) {
@@ -512,6 +537,11 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.orange),
+                onPressed: () => _editAlertSetting(index),
+                tooltip: '预警设置',
+              ),
               IconButton(
                 icon: const Icon(Icons.edit, color: Colors.blue),
                 onPressed: () => _editPeriodData(index),

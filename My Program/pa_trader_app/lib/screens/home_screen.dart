@@ -19,8 +19,9 @@ class HomeScreen extends StatefulWidget {
   }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+  late TabController _tabController;
   final GlobalKey<TradingCalculatorScreenState> _calculatorKey = GlobalKey();
   final GlobalKey<SetupListScreenState> _setupListKey = GlobalKey();
   final GlobalKey<ReviewListScreenState> _reviewListKey = GlobalKey();
@@ -47,12 +48,67 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+    
     _screens.addAll([
-      SetupListScreen(key: _setupListKey, onSetupsChanged: _updateSetups),
+      // Setup和复盘组合在一起
+      Scaffold(
+        appBar: AppBar(
+          title: const Text('策略与复盘'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                if (_tabController.index == 0) {
+                  _setupListKey.currentState?.performSearch();
+                } else {
+                  _reviewListKey.currentState?.performSearch();
+                }
+              },
+              tooltip: '搜索',
+            ),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                if (_tabController.index == 0) {
+                  _setupListKey.currentState?.performAdd();
+                } else {
+                  _reviewListKey.currentState?.performAdd();
+                }
+              },
+              tooltip: '新增',
+            ),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Setup'),
+              Tab(text: '复盘'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            SetupListScreen(key: _setupListKey, onSetupsChanged: _updateSetups),
+            ReviewListScreen(key: _reviewListKey, onReviewsChanged: _updateReviews),
+          ],
+        ),
+      ),
       TradingCalculatorScreen(key: _calculatorKey),
       const TaskCardListScreen(),
-      ReviewListScreen(key: _reviewListKey, onReviewsChanged: _updateReviews),
     ]);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _updateSetups(List<SetupOption> customSetups) {
@@ -111,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
-            label: 'Setup',
+            label: '策略与复盘',
           ),
           NavigationDestination(
             icon: Icon(Icons.calculate_outlined),
@@ -122,11 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.assignment_outlined),
             selectedIcon: Icon(Icons.assignment),
             label: '任务卡',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.article_outlined),
-            selectedIcon: Icon(Icons.article),
-            label: '复盘',
           ),
         ],
       ),

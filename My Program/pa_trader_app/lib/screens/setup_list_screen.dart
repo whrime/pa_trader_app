@@ -46,6 +46,18 @@ class SetupListScreenState extends State<SetupListScreen> {
     return all;
   }
 
+  void performSearch() {
+    final setups = _allSetups;
+    showSearch(
+      context: context,
+      delegate: _SetupSearchDelegate(setups, widget.onSelectSetup, _isCustomSetup, _navigateToEdit, _deleteCustomSetup),
+    );
+  }
+
+  void performAdd() {
+    _navigateToEdit();
+  }
+
   Future<void> _navigateToEdit({SetupOption? setup}) async {
     final result = await Navigator.push<SetupOption>(
       context,
@@ -90,25 +102,6 @@ class SetupListScreenState extends State<SetupListScreen> {
     final setups = _allSetups;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Setup 策略库'),
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: _SetupSearchDelegate(setups, widget.onSelectSetup, _isCustomSetup, _navigateToEdit, _deleteCustomSetup),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToEdit(),
-          ),
-        ],
-      ),
       body: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         itemCount: setups.length,

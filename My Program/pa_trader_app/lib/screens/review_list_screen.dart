@@ -27,6 +27,18 @@ class ReviewListScreenState extends State<ReviewListScreen> {
     return all;
   }
 
+  void performSearch() {
+    final reviews = _allReviews;
+    showSearch(
+      context: context,
+      delegate: _ReviewSearchDelegate(reviews, _isCustomReview, _navigateToEdit, _deleteCustomReview),
+    );
+  }
+
+  void performAdd() {
+    _navigateToEdit();
+  }
+
   Future<void> _navigateToEdit({ReviewOption? review}) async {
     final result = await Navigator.push<ReviewOption>(
       context,
@@ -70,25 +82,6 @@ class ReviewListScreenState extends State<ReviewListScreen> {
     final reviews = _allReviews;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('复盘分析'),
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: _ReviewSearchDelegate(reviews, _isCustomReview, _navigateToEdit, _deleteCustomReview),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToEdit(),
-          ),
-        ],
-      ),
       body: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         itemCount: reviews.length,

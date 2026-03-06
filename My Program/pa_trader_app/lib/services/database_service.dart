@@ -4,6 +4,7 @@ import 'package:path/path.dart';
 import '../models/trade_record.dart';
 import '../models/task_card.dart';
 import '../models/task_group.dart';
+import '../models/task_alert.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -27,7 +28,7 @@ class DatabaseService {
       
       return await openDatabase(
         path,
-        version: 4,
+        version: 5,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
         onOpen: (db) {
@@ -93,6 +94,21 @@ class DatabaseService {
         )
       ''');
       
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_alerts(
+          id TEXT PRIMARY KEY,
+          taskCardId TEXT NOT NULL,
+          stockName TEXT NOT NULL,
+          periodType TEXT NOT NULL,
+          type TEXT NOT NULL,
+          price REAL NOT NULL,
+          triggeredPrice REAL NOT NULL,
+          triggeredAt TEXT NOT NULL,
+          isMarked INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (taskCardId) REFERENCES task_cards(id)
+        )
+      ''');
+      
       print('Database tables created successfully');
     } catch (e) {
       print('Error creating table: $e');
@@ -138,6 +154,23 @@ class DatabaseService {
         )
       ''');
       print('Database upgraded to version 4');
+    }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_alerts(
+          id TEXT PRIMARY KEY,
+          taskCardId TEXT NOT NULL,
+          stockName TEXT NOT NULL,
+          periodType TEXT NOT NULL,
+          type TEXT NOT NULL,
+          price REAL NOT NULL,
+          triggeredPrice REAL NOT NULL,
+          triggeredAt TEXT NOT NULL,
+          isMarked INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (taskCardId) REFERENCES task_cards(id)
+        )
+      ''');
+      print('Database upgraded to version 5');
     }
   }
 
@@ -474,6 +507,171 @@ class DatabaseService {
     } catch (e) {
       print('Error moving task card to group: $e');
       rethrow;
+    }
+  }
+
+  // 预警相关方法
+  Future<void> saveAlertTrigger(AlertTrigger trigger) async {
+    try {
+      Database db = await database;
+      await db.insert(
+        'task_alerts',
+        {
+          'id': trigger.id,
+          'taskCardId': trigger.taskCardId,
+          'stockName': trigger.stockName,
+          'periodType': trigger.periodType,
+          'type': trigger.type.name,
+          'price': trigger.price,
+          'triggeredPrice': trigger.triggeredPrice,
+          'triggeredAt': trigger.triggeredAt.toIso8601String(),
+          'isMarked': trigger.isMarked ? 1 : 0,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      print('AlertTrigger saved: ${trigger.id}');
+    } catch (e) {
+      print('Error saving alert trigger: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<AlertTrigger>> getAllAlertTriggers() async {
+    try {
+      Database db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_alerts',
+        orderBy: 'triggeredAt DESC',
+      );
+      return List.generate(maps.length, (i) {
+        return AlertTrigger(
+          id: maps[i]['id'],
+          taskCardId: maps[i]['taskCardId'],
+          stockName: maps[i]['stockName'],
+          periodType: maps[i]['periodType'],
+          type: AlertType.values.firstWhere((e) => e.name == maps[i]['type']),
+          price: maps[i]['price'],
+          triggeredPrice: maps[i]['triggeredPrice'],
+          triggeredAt: DateTime.parse(maps[i]['triggeredAt']),
+          isMarked: maps[i]['isMarked'] == 1,
+        );
+      });
+    } catch (e) {
+      print('Error getting alert triggers: $e');
+      return [];
+    }
+  }
+
+  Future<List<AlertTrigger>> getTodayAlertTriggers() async {
+    try {
+      Database db = await database;
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+      final todayEnd = DateTime(today.year, today.month, today.day, 23, 59, 59);
+      
+      final List<Map<String, dynamic>> maps = await db.query(
+        'task_alerts',
+        where: 'triggeredAt >= ? AND triggeredAt <= ?',
+        whereArgs: [todayStart.toIso8601String(), todayEnd.toIso8601String()],
+        orderBy: 'triggeredAt DESC',
+      );
+      
+      return List.generate(maps.length, (i) {
+        return AlertTrigger(
+          id: maps[i]['id'],
+          taskCardId: maps[i]['taskCardId'],
+          stockName: maps[i]['stockName'],
+          periodType: maps[i]['periodType'],
+          type: AlertType.values.firstWhere((e) => e.name == maps[i]['type']),
+          price: maps[i]['price'],
+          triggeredPrice: maps[i]['triggeredPrice'],
+          triggeredAt: DateTime.parse(maps[i]['triggeredAt']),
+          isMarked: maps[i]['isMarked'] == 1,
+        );
+      });
+    } catch (e) {
+      print('Error getting today alert triggers: $e');
+      return [];
+    }
+  }
+
+  Future<void> markAlertTrigger(String id, bool marked) async {
+    try {
+      Database db = await database;
+      await db.update(
+        'task_alerts',
+        {'isMarked': marked ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      print('AlertTrigger marked: $id -> $marked');
+    } catch (e) {
+      print('Error marking alert trigger: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAlertTrigger(String id) async {
+    try {
+      Database db = await database;
+      await db.delete(
+        'task_alerts',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      print('AlertTrigger deleted: $id');
+    } catch (e) {
+      print('Error deleting alert trigger: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAlertTriggersByTaskCard(String taskCardId) async {
+    try {
+      Database db = await database;
+      await db.delete(
+        'task_alerts',
+        where: 'taskCardId = ?',
+        whereArgs: [taskCardId],
+      );
+      print('AlertTriggers deleted for taskCard: $taskCardId');
+    } catch (e) {
+      print('Error deleting alert triggers: $e');
+      rethrow;
+    }
+  }
+
+  // 检查价格并触发预警
+  Future<List<AlertTrigger>> checkPriceAndTrigger(String taskCardId, String stockName, double currentPrice) async {
+    try {
+      final taskCard = await getTaskCard(taskCardId);
+      if (taskCard == null) return [];
+      
+      final triggers = <AlertTrigger>[];
+      
+      for (final period in taskCard.periods) {
+        if (period.alertSetting != null) {
+          final periodTriggers = period.alertSetting!.checkPrice(currentPrice);
+          for (final trigger in periodTriggers) {
+            final fullTrigger = AlertTrigger(
+              taskCardId: taskCardId,
+              stockName: stockName,
+              periodType: period.periodType,
+              type: trigger.type,
+              price: trigger.price,
+              triggeredPrice: trigger.triggeredPrice,
+              triggeredAt: trigger.triggeredAt,
+            );
+            triggers.add(fullTrigger);
+            await saveAlertTrigger(fullTrigger);
+          }
+        }
+      }
+      
+      return triggers;
+    } catch (e) {
+      print('Error checking price and triggering alert: $e');
+      return [];
     }
   }
 }
