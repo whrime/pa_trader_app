@@ -324,7 +324,7 @@ class _AlertTriggerItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  '预警价格: ${trigger.price.toStringAsFixed(2)}',
+                  '预警价格: ${trigger.price.toStringAsFixed(3)}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
@@ -333,7 +333,7 @@ class _AlertTriggerItem extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '触发价格: ${trigger.triggeredPrice.toStringAsFixed(2)}',
+                  '触发价格: ${trigger.triggeredPrice.toStringAsFixed(3)}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(width: 16),

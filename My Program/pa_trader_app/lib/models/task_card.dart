@@ -68,22 +68,36 @@ class TaskCard {
     );
   }
 
-  // 计算优先级分数
+  // 计算优先级分数 - 返回最小周期的分数
   double get priorityScore {
     if (periods.isEmpty) return 0;
     
-    double totalScore = 0;
-    double totalWeight = 0;
+    // 定义周期优先级顺序（数字越小优先级越高）
+    Map<String, int> periodPriority = {
+      '5分钟': 1,
+      '120分钟': 2,
+      '周': 3,
+      '月': 4,
+      '日': 5,
+      '季': 6,
+      '年': 7,
+    };
     
+    // 按照优先级排序周期
+    periods.sort((a, b) {
+      int priorityA = periodPriority[a.periodType] ?? 999;
+      int priorityB = periodPriority[b.periodType] ?? 999;
+      return priorityA.compareTo(priorityB);
+    });
+    
+    // 返回第一个有数据的周期的分数
     for (var period in periods) {
       if (period.data != null) {
-        totalScore += period.data!.score * period.weight;
-        totalWeight += period.weight;
+        return period.data!.score;
       }
     }
     
-    if (totalWeight == 0) return 0;
-    return totalScore / totalWeight;
+    return 0;
   }
 
   // 获取优先级等级
@@ -278,18 +292,18 @@ final String scoreDescription = '''
 评分范围：-5.0 到 +5.0
 
 正数（做多信号）：
-• +4.0 ~ +5.0：强烈做多信号，建议重仓
-• +3.0 ~ +4.0：明显做多信号，建议建仓
-• +2.0 ~ +3.0：偏多信号，可轻仓尝试
-• +1.0 ~ +2.0：轻微偏多，观望为主
-• 0 ~ +1.0：略微偏多，等待确认
+• +4.0 ~ +5.0：超买可能，观望为主 等待离场/重新确认
+• +3.0 ~ +4.0：明显做多信号，注意风险，建议减仓
+• +2.0 ~ +3.0：偏多信号，观望为主，谨慎操作
+• +1.0 ~ +2.0：轻微偏多，可轻仓或确认加仓
+• 0 ~ +1.0：略微偏多，考虑做多 可轻仓尝试 等待确认
 
 负数（做空信号）：
-• -4.0 ~ -5.0：强烈做空信号，建议空仓或做空
-• -3.0 ~ -4.0：明显做空信号，建议减仓
-• -2.0 ~ -3.0：偏空信号，谨慎操作
-• -1.0 ~ -2.0：轻微偏空，注意风险
-• -1.0 ~ 0：略微偏空，观望为主
+• -4.0 ~ -5.0：强烈做空信号，观望为主 等待离场/重新确认
+• -3.0 ~ -4.0：明显做空信号，注意风险，建议减仓
+• -2.0 ~ -3.0：偏空信号，观望为主，谨慎操作
+• -1.0 ~ -2.0：轻微偏空，可轻仓或确认加仓
+• -1.0 ~ 0：略微偏空，考虑做空 可轻仓尝试 等待确认
 
 0分：中性，无明显信号，建议观望
 

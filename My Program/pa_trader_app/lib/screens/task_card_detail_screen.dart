@@ -718,7 +718,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                 runSpacing: 4,
                 children: alertSetting.upperPrices.map((price) {
                   return Chip(
-                    label: Text('${price.toStringAsFixed(2)}'),
+                    label: Text('${price.toStringAsFixed(3)}'),
                     backgroundColor: Color(0xFFFFEBEE), // Colors.red[100]
                     labelStyle: TextStyle(color: Color(0xFFB71C1C)), // Colors.red[700]
                   );
@@ -737,7 +737,7 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                 runSpacing: 4,
                 children: alertSetting.lowerPrices.map((price) {
                   return Chip(
-                    label: Text('${price.toStringAsFixed(2)}'),
+                    label: Text('${price.toStringAsFixed(3)}'),
                     backgroundColor: Color(0xFFE8F5E0), // Colors.green[100]
                     labelStyle: TextStyle(color: Color(0xFF1B5E20)), // Colors.green[700]
                   );

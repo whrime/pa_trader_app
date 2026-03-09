@@ -6,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:uuid/uuid.dart';
 import '../models/task_card.dart';
 import '../models/task_group.dart';
 import '../models/task_alert.dart';
@@ -159,11 +158,11 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
 
   Future<void> _loadTaskCards() async {
     final cards = await _databaseService.getTaskCardsByGroup(_selectedGroupId);
-    // 按优先级排序
+    // 按优先级排序 - 绝对值分数从0到5递增
     cards.sort((a, b) {
       final scoreA = a.priorityScore.abs();
       final scoreB = b.priorityScore.abs();
-      return scoreB.compareTo(scoreA);
+      return scoreA.compareTo(scoreB);
     });
     setState(() {
       _taskCards = cards;
@@ -297,7 +296,7 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
 
       // 保存到应用程序文档目录，避免权限问题
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'task_cards_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final fileName = 'task_${DateTime.now().millisecondsSinceEpoch}.txt';
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(buffer.toString());
 

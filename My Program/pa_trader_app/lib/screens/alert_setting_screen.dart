@@ -136,7 +136,7 @@ class _AlertSettingScreenState extends State<AlertSettingScreen> {
                           final index = entry.key;
                           final price = entry.value;
                           return Chip(
-                            label: Text('${price.toStringAsFixed(2)}'),
+                            label: Text('${price.toStringAsFixed(3)}'),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             onDeleted: () => _removeUpperPrice(index),
                           );
@@ -189,7 +189,7 @@ class _AlertSettingScreenState extends State<AlertSettingScreen> {
                           final index = entry.key;
                           final price = entry.value;
                           return Chip(
-                            label: Text('${price.toStringAsFixed(2)}'),
+                            label: Text('${price.toStringAsFixed(3)}'),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             onDeleted: () => _removeLowerPrice(index),
                           );

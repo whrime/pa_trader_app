@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/task_card.dart';
 import '../models/task_group.dart';
-import '../models/task_alert.dart';
 import '../services/database_service.dart';
 import 'alert_setting_screen.dart';
 

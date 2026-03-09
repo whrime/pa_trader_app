@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'setup_list_screen.dart';
 import 'trading_calculator_screen.dart';
 import 'history_screen.dart';
@@ -60,6 +65,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       Scaffold(
         appBar: AppBar(
           title: const Text('策略与复盘'),
+          leading: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) => _handleMenuAction(value),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file),
+                  title: Text('导出'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'import',
+                child: ListTile(
+                  leading: Icon(Icons.download),
+                  title: Text('导入'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.search),
@@ -116,12 +143,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _customSetups = customSetups;
     });
     _calculatorKey.currentState?.updateSetupOptions(allSetupOptions);
+    _setupListKey.currentState?.updateCustomSetups(customSetups);
   }
 
   void _updateReviews(List<ReviewOption> customReviews) {
     setState(() {
       _customReviews = customReviews;
     });
+    _reviewListKey.currentState?.updateCustomReviews(customReviews);
   }
 
   void _handleEditRecord(TradeRecord record) {
@@ -143,6 +172,248 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  void _handleMenuAction(String action) {
+    if (_tabController.index == 0) {
+      if (action == 'export') {
+        _exportSetup();
+      } else if (action == 'import') {
+        _importSetup();
+      }
+    } else {
+      if (action == 'export') {
+        _exportReview();
+      } else if (action == 'import') {
+        _importReview();
+      }
+    }
+  }
+
+  Future<void> _exportSetup() async {
+    try {
+      final exportData = {
+        'setups': _customSetups.map((s) => s.toJson()).toList(),
+      };
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      final buffer = StringBuffer();
+      buffer.writeln('# Setup策略数据导出');
+      buffer.writeln('# 导出时间: ${DateTime.now()}');
+      buffer.writeln('# ============================================');
+      buffer.writeln();
+      buffer.writeln('# --- JSON DATA START ---');
+      buffer.writeln(jsonString);
+      buffer.writeln('# --- JSON DATA END ---');
+
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'setup_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(buffer.toString());
+
+      await _openFolderAndSelectFile(file.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出成功: ${file.path}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportReview() async {
+    try {
+      final exportData = {
+        'reviews': _customReviews.map((r) => r.toJson()).toList(),
+      };
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      final buffer = StringBuffer();
+      buffer.writeln('# 复盘数据导出');
+      buffer.writeln('# 导出时间: ${DateTime.now()}');
+      buffer.writeln('# ============================================');
+      buffer.writeln();
+      buffer.writeln('# --- JSON DATA START ---');
+      buffer.writeln(jsonString);
+      buffer.writeln('# --- JSON DATA END ---');
+
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'review_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(buffer.toString());
+
+      await _openFolderAndSelectFile(file.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出成功: ${file.path}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importSetup() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = File(result.files.single.path!);
+      final content = await file.readAsString();
+
+      String? jsonString;
+      final lines = content.split('\n');
+      bool inJsonBlock = false;
+      final jsonLines = <String>[];
+
+      for (final line in lines) {
+        if (line.contains('# --- JSON DATA START ---')) {
+          inJsonBlock = true;
+          continue;
+        }
+        if (line.contains('# --- JSON DATA END ---')) {
+          inJsonBlock = false;
+          break;
+        }
+        if (inJsonBlock) {
+          jsonLines.add(line);
+        }
+      }
+
+      if (jsonLines.isNotEmpty) {
+        jsonString = jsonLines.join('\n');
+      } else {
+        jsonString = content;
+      }
+
+      final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      if (jsonData.containsKey('setups')) {
+        final setups = jsonData['setups'] as List;
+        int importCount = 0;
+        
+        for (var item in setups) {
+          final setup = SetupOption.fromJson(item as Map<String, dynamic>);
+          final existingIndex = _customSetups.indexWhere((s) => s.id == setup.id);
+          if (existingIndex == -1) {
+            _customSetups.add(setup);
+            importCount++;
+          }
+        }
+        
+        _updateSetups(_customSetups);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('成功导入 $importCount 个Setup策略')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importReview() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = File(result.files.single.path!);
+      final content = await file.readAsString();
+
+      String? jsonString;
+      final lines = content.split('\n');
+      bool inJsonBlock = false;
+      final jsonLines = <String>[];
+
+      for (final line in lines) {
+        if (line.contains('# --- JSON DATA START ---')) {
+          inJsonBlock = true;
+          continue;
+        }
+        if (line.contains('# --- JSON DATA END ---')) {
+          inJsonBlock = false;
+          break;
+        }
+        if (inJsonBlock) {
+          jsonLines.add(line);
+        }
+      }
+
+      if (jsonLines.isNotEmpty) {
+        jsonString = jsonLines.join('\n');
+      } else {
+        jsonString = content;
+      }
+
+      final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      if (jsonData.containsKey('reviews')) {
+        final reviews = jsonData['reviews'] as List;
+        int importCount = 0;
+        
+        for (var item in reviews) {
+          final review = ReviewOption.fromJson(item as Map<String, dynamic>);
+          final existingIndex = _customReviews.indexWhere((r) => r.id == review.id);
+          if (existingIndex == -1) {
+            _customReviews.add(review);
+            importCount++;
+          }
+        }
+        
+        _updateReviews(_customReviews);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('成功导入 $importCount 个复盘策略')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _openFolderAndSelectFile(String filePath) async {
+    try {
+      if (Platform.isWindows) {
+        await Process.run('explorer', ['/select,', filePath]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', ['-R', filePath]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [File(filePath).parent.path]);
+      }
+    } catch (e) {
+      print('打开文件夹失败: $e');
+    }
   }
 
   @override

@@ -77,6 +77,12 @@ class ReviewListScreenState extends State<ReviewListScreen> {
     return _customReviews.any((s) => s.id == review.id);
   }
 
+  void updateCustomReviews(List<ReviewOption> customReviews) {
+    setState(() {
+      _customReviews = customReviews;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reviews = _allReviews;

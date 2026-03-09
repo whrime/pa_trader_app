@@ -42,6 +42,17 @@ class ReviewOption {
         'qaList': qaList.map((q) => q.toJson()).toList(),
       };
 
+  factory ReviewOption.fromJson(Map<String, dynamic> json) {
+    return ReviewOption(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      shortDescription: json['shortDescription'] ?? '',
+      content: json['content'] ?? '',
+      imagePaths: List<String>.from(json['imagePaths'] ?? []),
+      qaList: (json['qaList'] as List<dynamic>?)?.map((item) => QaItem.fromJson(item as Map<String, dynamic>)).toList() ?? [],
+    );
+  }
+
   static List<ReviewOption> get predefinedList {
     return [
       ReviewOption(

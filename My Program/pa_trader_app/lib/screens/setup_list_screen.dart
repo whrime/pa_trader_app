@@ -34,6 +34,12 @@ class SetupListScreenState extends State<SetupListScreen> {
     widget.onSetupsChanged?.call(_customSetups);
   }
 
+  void updateCustomSetups(List<SetupOption> customSetups) {
+    setState(() {
+      _customSetups = customSetups;
+    });
+  }
+
   List<SetupOption> get _allSetups {
     final customIds = _customSetups.map((s) => s.id).toSet();
     final filteredPredefined = SetupOption.predefinedList.where((s) => !customIds.contains(s.id));
