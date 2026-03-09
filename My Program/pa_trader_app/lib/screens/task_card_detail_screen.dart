@@ -462,9 +462,9 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                   (period.alertSetting!.upperPrices.isNotEmpty ||
                       period.alertSetting!.lowerPrices.isNotEmpty))
                 const Icon(
-                  Icons.notifications_active,
+                  Icons.notifications,
                   color: Colors.orange,
-                  size: 16,
+                  size: 18,
                 ),
               if (period.alertSetting != null &&
                   (period.alertSetting!.upperPrices.isNotEmpty ||
@@ -474,22 +474,6 @@ class _TaskCardDetailScreenState extends State<TaskCardDetailScreen> {
                 period.periodType,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (period.isRequired)
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red[100],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '必填',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.red[700],
-                    ),
-                  ),
-                ),
             ],
           ),
           subtitle: data != null

@@ -39,7 +39,7 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
       _periods.add(TaskPeriod(
         periodType: '120分钟',
         sortOrder: 0,
-        isRequired: true,
+        isRequired: false,
       ));
     }
   }
@@ -89,7 +89,7 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
                           _periods.add(TaskPeriod(
                             periodType: periodType,
                             sortOrder: _periods.length,
-                            isRequired: periodType == '120分钟',
+                            isRequired: false,
                           ));
                           // 重新排序
                           _sortPeriods();
@@ -137,14 +137,6 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
   }
 
   void _removePeriod(int index) {
-    final period = _periods[index];
-    if (period.isRequired) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('120分钟周期为必填项，不能删除')),
-      );
-      return;
-    }
-    
     setState(() {
       _periods.removeAt(index);
       _sortPeriods();
@@ -445,11 +437,6 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '提示：120分钟为必填周期，5分钟可单独删除',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
             const SizedBox(height: 16),
             ..._buildPeriodList(),
           ],
@@ -546,11 +533,10 @@ class _TaskCardEditScreenState extends State<TaskCardEditScreen> {
                 icon: const Icon(Icons.edit, color: Colors.blue),
                 onPressed: () => _editPeriodData(index),
               ),
-              if (!period.isRequired)
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _removePeriod(index),
-                ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _removePeriod(index),
+              ),
             ],
           ),
           onTap: () => _editPeriodData(index),

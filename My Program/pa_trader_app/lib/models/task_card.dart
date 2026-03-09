@@ -167,6 +167,7 @@ class TaskPeriod {
   }
 }
 
+// 任务卡周期数据
 class PeriodData {
   String? context; // 背景/环境
   String? pattern; // 形态

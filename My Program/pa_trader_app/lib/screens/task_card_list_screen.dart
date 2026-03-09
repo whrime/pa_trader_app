@@ -295,8 +295,8 @@ class _TaskCardListScreenState extends State<TaskCardListScreen> {
       buffer.writeln();
       buffer.writeln('# 以上是JSON格式数据');
 
-      // 保存到下载目录
-      final directory = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      // 保存到应用程序文档目录，避免权限问题
+      final directory = await getApplicationDocumentsDirectory();
       final fileName = 'task_cards_${DateTime.now().millisecondsSinceEpoch}.txt';
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(buffer.toString());
@@ -961,6 +961,9 @@ class _TaskCardItem extends StatelessWidget {
                   runSpacing: 4,
                   children: card.periods.map((period) {
                     final hasData = period.data != null;
+                    final hasAlert = period.alertSetting != null &&
+                        (period.alertSetting!.upperPrices.isNotEmpty ||
+                            period.alertSetting!.lowerPrices.isNotEmpty);
                     return Chip(
                       label: Text(
                         period.periodType,
@@ -969,6 +972,13 @@ class _TaskCardItem extends StatelessWidget {
                           color: hasData ? Colors.white : Colors.grey[600],
                         ),
                       ),
+                      avatar: hasAlert
+                          ? const Icon(
+                              Icons.notifications,
+                              size: 12,
+                              color: Colors.orange,
+                            )
+                          : null,
                       backgroundColor: hasData ? Colors.blue : Colors.grey[200],
                       padding: EdgeInsets.zero,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
